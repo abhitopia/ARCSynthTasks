@@ -2,7 +2,7 @@ import numpy as np
 import json
 import os
 
-class TaskGenerator:
+class TaskSampler:
     def __init__(self, input_tasks, verifiers, save_path='scores.json'):
         """
         Initializes the TaskGenerator with unnormalized scores.
