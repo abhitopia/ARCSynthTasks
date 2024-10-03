@@ -81,13 +81,13 @@ def load_input_tasks(include_outputs=False):
 
     return input_tasks
 
-def compose_verifiers(verifiers_list):
-    def composed(input_grid):
-        result = input_grid
-        for verifier in verifiers_list:
-            result = verifier(result)
-        return result
-    return composed
+
+@dataclass
+class Verifier:
+    name: str
+    verifier: callable
+    composed_of: List[str] = field(default_factory=list)
+
 
 def compose_verifiers(verifiers_list):
     def composed(input_grid):
@@ -96,11 +96,17 @@ def compose_verifiers(verifiers_list):
             result = verifier(result)
         return result
     return composed
+
 
 def create_compound_verifier(verifiers, verifier_combination):
     verifier_name = '_'.join(verifier_combination)
-    compound_verifier =  compose_verifiers([verifiers[verifier_key] for verifier_key in verifier_combination])
-    return verifier_name, compound_verifier
+    compound_verifier_fn =  compose_verifiers([verifiers[verifier_key] for verifier_key in verifier_combination])
+    compound_verifier = Verifier(
+        name=verifier_name,
+        verifier=compound_verifier_fn,
+        composed_of=list(verifier_combination)
+    )
+    return compound_verifier
 
 def get_compound_verfiers(verifiers, max_length):
     verifier_keys = list(verifiers.keys())
@@ -109,10 +115,9 @@ def get_compound_verfiers(verifiers, max_length):
         combinations_r = product(verifier_keys, repeat=r)
         all_combinations.extend(combinations_r)
 
-    compound_verifiers = {}
+    compound_verifiers = []
     for combination in all_combinations:
-        verifier_name, compound_verifier = create_compound_verifier(verifiers, combination)
-        compound_verifiers[verifier_name] = compound_verifier
+        compound_verifiers.append(create_compound_verifier(verifiers, combination))
     return compound_verifiers
 
 @dataclass
@@ -149,13 +154,47 @@ def create_synthetic_task(verifier, input_task, new_task_id) -> Optional[Synthet
                         train=train_data,
                         test=test_data)
 
-def validate_task(task: SyntheticTask, validation_funcs) -> bool:
-    # Apply all validation functions
-    for validate in validation_funcs:
-        if not validate(task):
-            print(f"Task {task.task_id} failed validation: {validate.__name__}")
-            return False  # Task fails validation
-    return True
+
+class Validator:
+    def __init__(self):
+        self.validation_funcs = [
+            self.inputs_changed,
+            self.output_size_within_limits
+        ]
+
+    def __call__(self, task: SyntheticTask) -> bool:
+        # Apply all validation functions
+        for validate in self.validation_funcs:
+            if not validate(task):
+                print(f"Task {task.task_id} failed validation: {validate.__name__}")
+                return False  # Task fails validation
+        return True
+    
+    @staticmethod
+    def inputs_changed(task):
+        """
+        Validation function to check if any input has changed after transformation.
+        Returns True if inputs have changed, False otherwise.
+        """
+        for (original_input, transformed_input) in task.train + task.test:
+            if original_input != transformed_input:
+                return True  # Inputs have changed
+        return False  # Inputs have not changed
+
+    @staticmethod
+    def output_size_within_limits(task, max_size=(30, 30)):
+        """
+        Validation function to check if the size of outputs is within specified limits.
+        Returns True if all outputs are within limits, False otherwise.
+        """
+        max_rows, max_cols = max_size
+        for (_, transformed_input) in task.train + task.test:
+            num_rows = len(transformed_input)
+            num_cols = len(transformed_input[0]) if num_rows > 0 else 0
+            if num_rows > max_rows or num_cols > max_cols:
+                return False  # Output size exceeds limits
+        return True  # All outputs are within limits`
+
 
 def save_task(task: SyntheticTask, file_path: Path):
     with open(file_path, 'w') as f:
@@ -179,26 +218,28 @@ def save_task(task: SyntheticTask, file_path: Path):
         }
         json.dump(task_dict, f, indent=4)
 
-def process_input_task_verifier(input_task, verifier_name, verifier, validation_funcs, directory):
-    new_task_id = f"{input_task.task_id}_{verifier_name}"
+# def process_input_task_verifier(input_task: InputTask, verifier: Verifier, validator: Validator):
+#     new_task_id = f"{input_task.task_id}_{verifier.name}"
 
-    # Construct the directory path
-    dir_path = Path(directory)/verifier_name
-    dir_path.mkdir(parents=True, exist_ok=True)
+#     # Construct the directory path
+#     dir_path = Path(directory)/verifier.name
+#     dir_path.mkdir(parents=True, exist_ok=True)
 
-    file_path = dir_path/f'{new_task_id}.json'
+#     file_path = dir_path/f'{new_task_id}.json'
 
-    if file_path.exists():
-        print(f"Task {new_task_id} already exists.")
-        return
+#     if file_path.exists():
+#         print(f"Task {new_task_id} already exists.")
+#         return
 
-    synthetic_task = create_synthetic_task(verifier, input_task, new_task_id)
-    if synthetic_task is None:
-        print(f"Verifier {verifier_name} failed on some inputs.")
-        return
+#     synthetic_task = create_synthetic_task(verifier, input_task, new_task_id)
+#     if synthetic_task is None:
+#         print(f"Verifier {verifier_name} failed on some inputs.")
+#         return
 
-    if not validate_task(synthetic_task, validation_funcs):
-        return
+#     if not validate_task(synthetic_task, validation_funcs):
+#         return
     
-    save_task(synthetic_task, file_path)
+#     save_task(synthetic_task, file_path)
 
+
+## Validation functions
