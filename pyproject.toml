@@ -6,9 +6,10 @@ authors = ["abhitopia <abhitopia@isme.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.10"
+numpy = "^2.1.1"
 tqdm = "^4.66.5"
-numpy = "2.0.0"
+streamlit = "^1.39.0"
 
 
 [build-system]
