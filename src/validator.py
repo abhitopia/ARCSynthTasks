@@ -20,14 +20,14 @@ class Validator:
         Validation function to check if any input has changed after transformation.
         Returns True if inputs have changed, False otherwise.
         """
+        input_changed_array = []
         for (original_input, transformed_input) in task.train + task.test:
-            
-            if original_input.shape != transformed_input.shape:
-                return True
-            
-            if (original_input != transformed_input).any():
-                return True  # Inputs have changed
-        return False  # Inputs have not changed
+            if original_input.shape != transformed_input.shape or (original_input != transformed_input).any():
+                input_changed_array.append(True)
+            else:
+                input_changed_array.append(False)
+
+        return all(input_changed_array)
 
     @staticmethod
     def output_size_within_limits(task: Task, max_size=(30, 30)):

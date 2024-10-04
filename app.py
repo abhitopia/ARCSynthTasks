@@ -1,7 +1,8 @@
+from pathlib import Path
 import streamlit as st
 import json
 from arckit.vis import draw_task
-from src.utils import get_verifiers, load_task_inputs
+from src.utils import get_verifiers, load_task_inputs, save_task
 from src.sampler import TaskSampler
 from src.synthesizer import TaskSynthesizer
 from src.validator import Validator
@@ -10,6 +11,7 @@ from src.validator import Validator
 # CONFIG
 INCLUDE_OUTPUTS = False
 SCORE_FILE = 'scores.json'
+KEPT_TASK_DIR = Path('data/synthetic_tasks')
 NUM_VERIFIERS = 1
 
 
@@ -85,10 +87,9 @@ def visualize_task(synthetic_task):
 
 def save_tasks_and_scores():
     # Save kept tasks
-    with open('kept_tasks.json', 'w') as f:
-        json.dump([task['synthetic_task'] for task in st.session_state.kept_tasks], f, indent=4)
-    # Save scores
-    # SAMPLER.save_scores()
+    for task in st.session_state.kept_tasks:
+        task_obj = task['synthetic_task']
+        save_task(task_obj, KEPT_TASK_DIR / f"{task_obj.id}.json")
     st.sidebar.success('Tasks and scores saved.')
 
 def clear_kept_tasks():
