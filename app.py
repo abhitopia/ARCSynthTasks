@@ -124,8 +124,53 @@ def generate_synthetic_task_until_valid(synthesizer: TaskSynthesizer, sampler: T
     return task, task_components
 
 
+# def visualize_task(synthetic_task):
+#     """
+#     Visualize the synthetic task and allow selective removal of training/testing elements.
+#     """
+#     st.write("### Task Visualization")
+#     svg = draw_task(synthetic_task, include_test='all')
+    
+#     # Assuming svg.as_svg() returns the SVG string
+#     svg_content = svg.as_svg()
+    
+#     # Optionally, remove the XML declaration if present
+#     if svg_content.strip().startswith('<?xml'):
+#         svg_content = '\n'.join(svg_content.strip().split('\n')[1:])
+    
+#     # Embed the SVG using st.markdown
+#     st.markdown(f'<div>{svg_content}</div>', unsafe_allow_html=True)
+
+#     # Show train and test examples
+#     st.write("### Train Examples")
+#     for idx, (input_arr, output_arr) in enumerate(synthetic_task.train):
+#         col1, col2 = st.columns([4, 1])
+#         with col1:
+#             st.write(f"Train {idx + 1}")
+#         with col2:
+#             if st.button(f"Remove", key=f"remove_train_{idx}"):
+#                 # Remove the selected train example and rerun the visualization
+#                 synthetic_task.train.pop(idx)
+#                 st.session_state.current_task['synthetic_task'] = synthetic_task
+#                 st.rerun()
+
+#     st.write("### Test Examples")
+#     for idx, (input_arr, output_arr) in enumerate(synthetic_task.test):
+#         col1, col2 = st.columns([4, 1])
+#         with col1:
+#             st.write(f"Test {idx + 1}")
+#         with col2:
+#             if st.button(f"Remove", key=f"remove_test_{idx}"):
+#                 # Remove the selected test example and rerun the visualization
+#                 synthetic_task.test.pop(idx)
+#                 st.session_state.current_task['synthetic_task'] = synthetic_task
+#                 st.rerun()
+
 def visualize_task(synthetic_task):
-    st.write("### Task Visualization")
+    """
+    Visualize the synthetic task and allow selective removal of training/testing elements.
+    """
+    # st.write("### Task Visualization")
     svg = draw_task(synthetic_task, include_test='all')
     
     # Assuming svg.as_svg() returns the SVG string
@@ -136,7 +181,114 @@ def visualize_task(synthetic_task):
         svg_content = '\n'.join(svg_content.strip().split('\n')[1:])
     
     # Embed the SVG using st.markdown
-    st.markdown(f'<div>{svg_content}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="display: flex; justify-content: center;">{svg_content}</div>', unsafe_allow_html=True)
+
+
+    # Show train and test examples
+    st.write("### Train Examples")
+    for idx, (input_arr, output_arr) in enumerate(synthetic_task.train):
+        col1, col2, col3 = st.columns([4, 1, 2])
+        with col1:
+            st.write(f"Train {idx + 1}")
+        with col2:
+            if st.button(f"Remove", key=f"remove_train_{idx}"):
+                # Remove the selected train example and rerun the visualization
+                synthetic_task.train.pop(idx)
+                st.session_state.current_task['synthetic_task'] = synthetic_task
+                st.rerun()
+        with col3:
+            if st.button(f"Move to Test", key=f"move_train_{idx}"):
+                # Move the selected train example to test and rerun the visualization
+                synthetic_task.test.append(synthetic_task.train.pop(idx))
+                st.session_state.current_task['synthetic_task'] = synthetic_task
+                st.rerun()
+
+    st.write("### Test Examples")
+    for idx, (input_arr, output_arr) in enumerate(synthetic_task.test):
+        col1, col2, col3 = st.columns([4, 1, 2])
+        with col1:
+            st.write(f"Test {idx + 1}")
+        with col2:
+            if st.button(f"Remove", key=f"remove_test_{idx}"):
+                # Remove the selected test example and rerun the visualization
+                synthetic_task.test.pop(idx)
+                st.session_state.current_task['synthetic_task'] = synthetic_task
+                st.rerun()
+        with col3:
+            if st.button(f"Move to Train", key=f"move_test_{idx}"):
+                # Move the selected test example to train and rerun the visualization
+                synthetic_task.train.append(synthetic_task.test.pop(idx))
+                st.session_state.current_task['synthetic_task'] = synthetic_task
+                st.rerun()
+
+# def visualize_task(synthetic_task):
+#     """
+#     Visualize the synthetic task and allow selective removal of training/testing elements.
+#     """
+#     st.write("### Task Visualization")
+#     svg = draw_task(synthetic_task, include_test='all')
+    
+#     # Assuming svg.as_svg() returns the SVG string
+#     svg_content = svg.as_svg()
+    
+#     # Optionally, remove the XML declaration if present
+#     if svg_content.strip().startswith('<?xml'):
+#         svg_content = '\n'.join(svg_content.strip().split('\n')[1:])
+    
+#     # Embed the SVG using st.markdown
+#     st.markdown(f'<div>{svg_content}</div>', unsafe_allow_html=True)
+
+#     # Show train and test examples
+#     st.write("### Train Examples")
+#     for idx, (input_arr, output_arr) in enumerate(synthetic_task.train):
+#         col1, col2, col3 = st.columns([4, 1, 1])
+#         with col1:
+#             st.write(f"Train {idx + 1}")
+#         with col2:
+#             if st.button(f"Remove", key=f"remove_train_{idx}"):
+#                 # Remove the selected train example and rerun the visualization
+#                 synthetic_task.train.pop(idx)
+#                 st.session_state.current_task['synthetic_task'] = synthetic_task
+#                 st.rerun()
+#         with col3:
+#             if st.button(f"Move to Test", key=f"move_train_{idx}"):
+#                 # Move the selected train example to test and rerun the visualization
+#                 synthetic_task.test.append(synthetic_task.train.pop(idx))
+#                 st.session_state.current_task['synthetic_task'] = synthetic_task
+#                 st.rerun()
+
+#     st.write("### Test Examples")
+#     for idx, (input_arr, output_arr) in enumerate(synthetic_task.test):
+#         col1, col2, col3 = st.columns([4, 1, 1])
+#         with col1:
+#             st.write(f"Test {idx + 1}")
+#         with col2:
+#             if st.button(f"Remove", key=f"remove_test_{idx}"):
+#                 # Remove the selected test example and rerun the visualization
+#                 synthetic_task.test.pop(idx)
+#                 st.session_state.current_task['synthetic_task'] = synthetic_task
+#                 st.rerun()
+#         with col3:
+#             if st.button(f"Move to Train", key=f"move_test_{idx}"):
+#                 # Move the selected test example to train and rerun the visualization
+#                 synthetic_task.train.append(synthetic_task.test.pop(idx))
+#                 st.session_state.current_task['synthetic_task'] = synthetic_task
+#                 st.rerun()
+
+
+# def visualize_task(synthetic_task):
+#     st.write("### Task Visualization")
+#     svg = draw_task(synthetic_task, include_test='all')
+    
+#     # Assuming svg.as_svg() returns the SVG string
+#     svg_content = svg.as_svg()
+    
+#     # Optionally, remove the XML declaration if present
+#     if svg_content.strip().startswith('<?xml'):
+#         svg_content = '\n'.join(svg_content.strip().split('\n')[1:])
+    
+#     # Embed the SVG using st.markdown
+#     st.markdown(f'<div>{svg_content}</div>', unsafe_allow_html=True)
 
 def save_tasks_and_scores():
     # Save kept tasks
@@ -264,10 +416,89 @@ def sample_next_task():
     # Update last unactioned task index
     st.session_state.last_unactioned_task_index = st.session_state.current_index
 
+
+# # Amend the `display_task` function to use the updated `visualize_task`
+# def display_task(task, is_kept_task=False):
+#     with st.container():
+#         # Display the visualization
+#         visualize_task(task['synthetic_task'])
+
+#         # Generate a unique key for buttons based on the task
+#         # Display status or feedback buttons
+#         col1, col2 = st.columns(2)
+
+#         if is_kept_task:
+#             # Viewing a kept task
+#             with col1:
+#                 if st.button('Return to Current Task', key=key_base + 'return_button'):
+#                     on_return_to_current_task_clicked()
+#             with col2:
+#                 if st.button('Discard', key=key_base + 'discard_button'):
+#                     # Remove from kept tasks
+#                     st.session_state.kept_tasks.remove(task)
+#                     task['status'] = 'discarded'
+#                     # Update last unactioned task index
+#                     st.session_state.last_unactioned_task_index = st.session_state.current_index
+#                     # Proceed to next task
+#                     st.session_state.action = 'next_task'
+#                     st.rerun()  # Updated function call
+#         else:
+#             # Viewing the current task
+#             if task['status'] == 'kept':
+#                 with col1:
+#                     st.button('Kept', key=key_base + 'kept_button', disabled=True)
+#                 with col2:
+#                     if st.button('Discard', key=key_base + 'discard_button'):
+#                         on_discard_clicked()
+#             else:
+#                 with col1:
+#                     if st.button('Keep', key=key_base + 'keep_button'):
+#                         on_keep_clicked()
+#                 with col2:
+#                     if st.button('Discard', key=key_base + 'discard_button'):
+#                         on_discard_clicked()
+
+#         # Show train and test examples
+#         key_base = f"task_{id(task)}_"
+
+#         # Display status or feedback buttons
+#         col1, col2 = st.columns(2)
+
+#         if is_kept_task:
+#             # Viewing a kept task
+#             with col1:
+#                 if st.button('Return to Current Task', key=key_base + 'return_button'):
+#                     on_return_to_current_task_clicked()
+#             with col2:
+#                 if st.button('Discard', key=key_base + 'discard_button'):
+#                     # Remove from kept tasks
+#                     st.session_state.kept_tasks.remove(task)
+#                     task['status'] = 'discarded'
+#                     # Update last unactioned task index
+#                     st.session_state.last_unactioned_task_index = st.session_state.current_index
+#                     # Proceed to next task
+#                     st.session_state.action = 'next_task'
+#                     st.rerun()  # Updated function call
+#         else:
+#             # Viewing the current task
+#             if task['status'] == 'kept':
+#                 with col1:
+#                     st.button('Kept', key=key_base + 'kept_button', disabled=True)
+#                 with col2:
+#                     if st.button('Discard', key=key_base + 'discard_button'):
+#                         on_discard_clicked()
+#             else:
+#                 with col1:
+#                     if st.button('Keep', key=key_base + 'keep_button'):
+#                         on_keep_clicked()
+#                 with col2:
+#                     if st.button('Discard', key=key_base + 'discard_button'):
+#                         on_discard_clicked()
+
+# Amend the `display_task` function to use the updated `visualize_task`
 def display_task(task, is_kept_task=False):
     with st.container():
-        # Display the visualization
-        visualize_task(task['synthetic_task'])
+    
 
         # Generate a unique key for buttons based on the task
         key_base = f"task_{id(task)}_"
@@ -305,6 +536,9 @@ def display_task(task, is_kept_task=False):
                 with col2:
                     if st.button('Discard', key=key_base + 'discard_button'):
                         on_discard_clicked()
+
+        # Display the visualization
+        visualize_task(task['synthetic_task'])
 
 if __name__ == '__main__':
     main()
