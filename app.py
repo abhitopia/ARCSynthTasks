@@ -24,7 +24,7 @@ logging.basicConfig(
 INCLUDE_OUTPUTS = True
 SCORE_FILE = 'scores.json'
 KEPT_TASK_DIR = Path('data/synthetic_tasks')
-NUM_VERIFIERS = 1
+NUM_VERIFIERS = 2
 BUFFER_SIZE = 5  # Number of tasks to keep in the buffer
 
 @st.cache_resource
@@ -124,48 +124,6 @@ def generate_synthetic_task_until_valid(synthesizer: TaskSynthesizer, sampler: T
     return task, task_components
 
 
-# def visualize_task(synthetic_task):
-#     """
-#     Visualize the synthetic task and allow selective removal of training/testing elements.
-#     """
-#     st.write("### Task Visualization")
-#     svg = draw_task(synthetic_task, include_test='all')
-    
-#     # Assuming svg.as_svg() returns the SVG string
-#     svg_content = svg.as_svg()
-    
-#     # Optionally, remove the XML declaration if present
-#     if svg_content.strip().startswith('<?xml'):
-#         svg_content = '\n'.join(svg_content.strip().split('\n')[1:])
-    
-#     # Embed the SVG using st.markdown
-#     st.markdown(f'<div>{svg_content}</div>', unsafe_allow_html=True)
-
-#     # Show train and test examples
-#     st.write("### Train Examples")
-#     for idx, (input_arr, output_arr) in enumerate(synthetic_task.train):
-#         col1, col2 = st.columns([4, 1])
-#         with col1:
-#             st.write(f"Train {idx + 1}")
-#         with col2:
-#             if st.button(f"Remove", key=f"remove_train_{idx}"):
-#                 # Remove the selected train example and rerun the visualization
-#                 synthetic_task.train.pop(idx)
-#                 st.session_state.current_task['synthetic_task'] = synthetic_task
-#                 st.rerun()
-
-#     st.write("### Test Examples")
-#     for idx, (input_arr, output_arr) in enumerate(synthetic_task.test):
-#         col1, col2 = st.columns([4, 1])
-#         with col1:
-#             st.write(f"Test {idx + 1}")
-#         with col2:
-#             if st.button(f"Remove", key=f"remove_test_{idx}"):
-#                 # Remove the selected test example and rerun the visualization
-#                 synthetic_task.test.pop(idx)
-#                 st.session_state.current_task['synthetic_task'] = synthetic_task
-#                 st.rerun()
-
 def visualize_task(synthetic_task):
     """
     Visualize the synthetic task and allow selective removal of training/testing elements.
@@ -220,75 +178,6 @@ def visualize_task(synthetic_task):
                 synthetic_task.train.append(synthetic_task.test.pop(idx))
                 st.session_state.current_task['synthetic_task'] = synthetic_task
                 st.rerun()
-
-# def visualize_task(synthetic_task):
-#     """
-#     Visualize the synthetic task and allow selective removal of training/testing elements.
-#     """
-#     st.write("### Task Visualization")
-#     svg = draw_task(synthetic_task, include_test='all')
-    
-#     # Assuming svg.as_svg() returns the SVG string
-#     svg_content = svg.as_svg()
-    
-#     # Optionally, remove the XML declaration if present
-#     if svg_content.strip().startswith('<?xml'):
-#         svg_content = '\n'.join(svg_content.strip().split('\n')[1:])
-    
-#     # Embed the SVG using st.markdown
-#     st.markdown(f'<div>{svg_content}</div>', unsafe_allow_html=True)
-
-#     # Show train and test examples
-#     st.write("### Train Examples")
-#     for idx, (input_arr, output_arr) in enumerate(synthetic_task.train):
-#         col1, col2, col3 = st.columns([4, 1, 1])
-#         with col1:
-#             st.write(f"Train {idx + 1}")
-#         with col2:
-#             if st.button(f"Remove", key=f"remove_train_{idx}"):
-#                 # Remove the selected train example and rerun the visualization
-#                 synthetic_task.train.pop(idx)
-#                 st.session_state.current_task['synthetic_task'] = synthetic_task
-#                 st.rerun()
-#         with col3:
-#             if st.button(f"Move to Test", key=f"move_train_{idx}"):
-#                 # Move the selected train example to test and rerun the visualization
-#                 synthetic_task.test.append(synthetic_task.train.pop(idx))
-#                 st.session_state.current_task['synthetic_task'] = synthetic_task
-#                 st.rerun()
-
-#     st.write("### Test Examples")
-#     for idx, (input_arr, output_arr) in enumerate(synthetic_task.test):
-#         col1, col2, col3 = st.columns([4, 1, 1])
-#         with col1:
-#             st.write(f"Test {idx + 1}")
-#         with col2:
-#             if st.button(f"Remove", key=f"remove_test_{idx}"):
-#                 # Remove the selected test example and rerun the visualization
-#                 synthetic_task.test.pop(idx)
-#                 st.session_state.current_task['synthetic_task'] = synthetic_task
-#                 st.rerun()
-#         with col3:
-#             if st.button(f"Move to Train", key=f"move_test_{idx}"):
-#                 # Move the selected test example to train and rerun the visualization
-#                 synthetic_task.train.append(synthetic_task.test.pop(idx))
-#                 st.session_state.current_task['synthetic_task'] = synthetic_task
-#                 st.rerun()
-
-
-# def visualize_task(synthetic_task):
-#     st.write("### Task Visualization")
-#     svg = draw_task(synthetic_task, include_test='all')
-    
-#     # Assuming svg.as_svg() returns the SVG string
-#     svg_content = svg.as_svg()
-    
-#     # Optionally, remove the XML declaration if present
-#     if svg_content.strip().startswith('<?xml'):
-#         svg_content = '\n'.join(svg_content.strip().split('\n')[1:])
-    
-#     # Embed the SVG using st.markdown
-#     st.markdown(f'<div>{svg_content}</div>', unsafe_allow_html=True)
 
 def save_tasks_and_scores():
     # Save kept tasks
