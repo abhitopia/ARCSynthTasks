@@ -95,5 +95,8 @@ def compose_verifiers(verifiers_list):
 
 def save_task(task: Task, path: Union[Path, str]):
     path = Path(path)
+    if path.exists():
+        print(f"Task {task.id} already exists at {path}")
+        return
     path.parent.mkdir(parents=True, exist_ok=True)
     json.dump(task.to_dict(), path.open('w'), indent=2)
