@@ -1,3 +1,4 @@
+import logging
 from arckit import Task
 
 class Validator:
@@ -12,7 +13,7 @@ class Validator:
         # Apply all validation functions
         for validate in self.validation_funcs:
             if not validate(task):
-                print(f"Task {task.id} failed validation: {validate.__name__}")
+                logging.info(f"Task {task.id} failed validation: {validate.__name__}")
                 return False  # Task fails validation
         return True
     
@@ -52,7 +53,6 @@ class Validator:
         splited = task.id.split('_')
         input_id = splited[0][1:] if splited[0][0] == 'I' or splited[0][0] == 'O' else splited[0]
         verifiers = splited[1:]
-        print(input_id, verifiers)
         return input_id not in verifiers
 
 

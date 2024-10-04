@@ -1,3 +1,6 @@
+import logging
+from pathlib import Path
+import tempfile
 import numpy as np
 import json
 import os
@@ -15,6 +18,8 @@ class TaskSampler:
         self.input_tasks = input_tasks
         self.verifiers = verifiers
         self.save_path = save_path
+        self.backup_path = Path(self.save_path).with_suffix('.backup.json')
+
 
         # Initialize scores
         self.scores_input_task = {task: 1.0 for task in self.input_tasks}
@@ -208,38 +213,94 @@ class TaskSampler:
             scores_dict[key] *= 0.9  # Decrease by 10%
         else:
             raise ValueError("Feedback must be 'keep', 'discard', or 'invalid'")
-
+        
     def save_scores(self):
         """
-        Saves the scores to a JSON file.
+        Saves the scores to a JSON file atomically.
+        Always creates a backup before saving.
         """
-        # Load existing scores from file if it exists
-        if os.path.exists(self.save_path):
-            with open(self.save_path, 'r') as f:
-                saved_data = json.load(f)
-        else:
-            saved_data = {}
+        scores_path = Path(self.save_path)
+        backup_path = self.backup_path
 
-        # Update saved_data with current scores
-        saved_data.setdefault('scores_input_task', {}).update(self.scores_input_task)
-        saved_data.setdefault('scores_verifier_given_input', {}).update(self.scores_verifier_given_input)
-        saved_data.setdefault('scores_verifier2_given_verifier1', {}).update(self.scores_verifier2_given_verifier1)
+        # Prepare the data to be saved
+        saved_data = {
+            'scores_input_task': self.scores_input_task,
+            'scores_verifier_given_input': self.scores_verifier_given_input,
+            'scores_verifier2_given_verifier1': self.scores_verifier2_given_verifier1
+        }
 
-        # Save updated scores
-        with open(self.save_path, 'w') as f:
-            json.dump(saved_data, f, indent=4)
-        print(f"Scores saved to {self.save_path}")
+        try:
+            # Create a temporary file in the same directory as scores.json
+            with tempfile.NamedTemporaryFile('w', delete=False, dir=scores_path.parent, encoding='utf-8') as tmp_file:
+                json.dump(saved_data, tmp_file, indent=4)
+                temp_path = Path(tmp_file.name)
+
+            # Create a backup of the current scores.json if it exists
+            if scores_path.exists():
+                scores_path.replace(backup_path)
+                logging.info(f"Backup created at {backup_path}")
+
+            # Atomically replace scores.json with the temporary file
+            temp_path.replace(scores_path)
+            logging.info(f"Scores successfully saved to {self.save_path}")
+        except Exception as e:
+            logging.error(f"Failed to save scores to {self.save_path}: {e}")
+            # Clean up the temporary file if it exists
+            if 'temp_path' in locals() and temp_path.exists():
+                try:
+                    temp_path.unlink()
+                    logging.info(f"Temporary file {temp_path} deleted due to an error.")
+                except Exception as cleanup_error:
+                    logging.error(f"Failed to delete temporary file {temp_path}: {cleanup_error}")
+
 
     def load_scores(self):
         """
-        Loads the scores from a JSON file.
+        Loads the scores from the main JSON file.
+        If loading fails due to corruption, attempts to load from the backup.
+        If both fail, terminates the program to allow for manual intervention.
         """
-        with open(self.save_path, 'r') as f:
-            saved_data = json.load(f)
-        self.scores_input_task = saved_data.get('scores_input_task', {})
-        self.scores_verifier_given_input = saved_data.get('scores_verifier_given_input', {})
-        self.scores_verifier2_given_verifier1 = saved_data.get('scores_verifier2_given_verifier1', {})
-        print(f"Scores loaded from {self.save_path}")
+        scores_path = Path(self.save_path)
+        backup_path = self.backup_path
+
+        # Attempt to load the main scores.json
+        try:
+            logging.info(f"Attempting to load scores from {self.save_path}")
+            with scores_path.open('r', encoding='utf-8') as f:
+                saved_data = json.load(f)
+
+            self.scores_input_task = saved_data.get('scores_input_task', {})
+            self.scores_verifier_given_input = saved_data.get('scores_verifier_given_input', {})
+            self.scores_verifier2_given_verifier1 = saved_data.get('scores_verifier2_given_verifier1', {})
+            logging.info(f"Scores successfully loaded from {self.save_path}")
+            return
+        except json.JSONDecodeError as e:
+            logging.error(f"JSON decoding failed for {self.save_path}: {e}")
+        except FileNotFoundError:
+            logging.warning(f"{self.save_path} does not exist. A new file will be created upon saving.")
+        except Exception as e:
+            logging.error(f"An unexpected error occurred while loading {self.save_path}: {e}")
+
+        # If loading main scores.json failed, attempt to load from backup
+        if backup_path.exists():
+            try:
+                logging.info(f"Attempting to load scores from backup {backup_path}")
+                with backup_path.open('r', encoding='utf-8') as f:
+                    saved_data = json.load(f)
+                self.scores_input_task = saved_data.get('scores_input_task', {})
+                self.scores_verifier_given_input = saved_data.get('scores_verifier_given_input', {})
+                self.scores_verifier2_given_verifier1 = saved_data.get('scores_verifier2_given_verifier1', {})
+                logging.info(f"Scores successfully loaded from backup {backup_path}")
+                return
+            except json.JSONDecodeError as e:
+                logging.error(f"JSON decoding failed for backup {backup_path}: {e}")
+            except Exception as e:
+                logging.error(f"An unexpected error occurred while loading backup {backup_path}: {e}")
+
+        # If both main and backup loading failed, terminate the program
+        logging.critical("Both main and backup score files are corrupted or missing. Terminating the program for manual intervention.")
+        raise SystemExit("Critical Error: Failed to load scores from both main and backup files. Please restore the files manually.")
+    
 
     def print_scores(self):
         """

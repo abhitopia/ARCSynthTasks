@@ -1,4 +1,6 @@
 from pathlib import Path
+import queue
+import time
 import streamlit as st
 import json
 from arckit.vis import draw_task
@@ -6,6 +8,16 @@ from src.utils import get_verifiers, load_task_inputs, save_task
 from src.sampler import TaskSampler
 from src.synthesizer import TaskSynthesizer
 from src.validator import Validator
+import threading
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
 
 
 # CONFIG
@@ -13,6 +25,14 @@ INCLUDE_OUTPUTS = False
 SCORE_FILE = 'scores.json'
 KEPT_TASK_DIR = Path('data/synthetic_tasks')
 NUM_VERIFIERS = 1
+BUFFER_SIZE = 5  # Number of tasks to keep in the buffer
+
+@st.cache_resource
+def get_task_buffer():
+    """
+    Initializes and returns a thread-safe queue to act as the task buffer.
+    """
+    return queue.Queue(maxsize=BUFFER_SIZE)
 
 
 @st.cache_resource
@@ -49,8 +69,41 @@ if 'last_unactioned_task_index' not in st.session_state:
     st.session_state.last_unactioned_task_index = -1  # To track the last unactioned task
 
 
+# Initialize buffer-related variables using the cached task buffer
+task_buffer = get_task_buffer()
+
+# Flag to ensure the buffer thread starts only once
+if 'buffer_thread_running' not in st.session_state:
+    st.session_state.buffer_thread_running = False
+
+def fill_task_buffer():
+    """
+    Background thread function to continuously fill the task buffer.
+    """
+    while True:
+        if not task_buffer.full():
+            try:
+                task, components = generate_synthetic_task_until_valid(
+                    synthesizer=SYNTHESIZER,
+                    sampler=SAMPLER,
+                    validator=VALIDATOR,
+                    num_verifiers=NUM_VERIFIERS
+                )
+                task_dict = {
+                    'sampled_task': components,
+                    'synthetic_task': task,
+                    'status': None
+                }
+                task_buffer.put(task_dict)
+                logging.info(f"Task added to buffer. Buffer size: {task_buffer.qsize()}")
+            except Exception as e:
+                logging.info(f"Error generating task in buffer: {e}")
+        else:
+            # Buffer is full; wait before trying again
+            time.sleep(1)
+
+
 def generate_synthetic_task_until_valid(synthesizer: TaskSynthesizer, sampler: TaskSampler, validator: Validator, num_verifiers: int, max_tries=20):
-    print("Generating synthetic task until valid")
     for _ in range(max_tries):
         invalid_task = False
         task_components = sampler.sample_task(num_verifiers)
@@ -60,7 +113,7 @@ def generate_synthetic_task_until_valid(synthesizer: TaskSynthesizer, sampler: T
                 invalid_task = True
             draw_task(task, include_test='all')
         except Exception as e:
-            # print(f"Error: {e}, skipping task")
+            logging.warning(f"Error creating task (Expected): {e}, skipping task")
             invalid_task = True
 
         if invalid_task:
@@ -145,6 +198,12 @@ def on_return_to_current_task_clicked():
 def main():
     st.title('ARC Task Synthesizer')
 
+    # Start the background buffer thread if not already running
+    if not st.session_state.buffer_thread_running:
+        buffer_thread = threading.Thread(target=fill_task_buffer, daemon=True)
+        buffer_thread.start()
+        st.session_state.buffer_thread_running = True
+
     # Handle actions based on button clicks BEFORE rendering the sidebar
     if st.session_state.action == 'next_task' or st.session_state.current_index == -1 or st.session_state.current_task is None:
         sample_next_task()
@@ -181,17 +240,22 @@ def main():
 
 def sample_next_task():
     # Sample a new task
-    synthetic_task, sampled_task = generate_synthetic_task_until_valid(
-                                        synthesizer=SYNTHESIZER,
-                                        sampler=SAMPLER,
-                                        validator=VALIDATOR,
-                                        num_verifiers= NUM_VERIFIERS)
-    # Create task dictionary
-    task = {
-        'sampled_task': sampled_task,
-        'synthetic_task': synthetic_task,
-        'status': None
-    }
+    try:
+        task = task_buffer.get_nowait()
+        logging.info(f"Task retrieved from buffer. Buffer size: {task_buffer.qsize()}")
+    except queue.Empty:
+        logging.info("Buffer empty. Generating task synchronously.")
+        task, components = generate_synthetic_task_until_valid(
+            synthesizer=SYNTHESIZER,
+            sampler=SAMPLER,
+            validator=VALIDATOR,
+            num_verifiers=NUM_VERIFIERS
+        )
+        task = {
+            'sampled_task': components,
+            'synthetic_task': task,
+            'status': None
+        }
     # Add to history
     st.session_state.task_history.append(task)
     st.session_state.current_index = len(st.session_state.task_history) - 1

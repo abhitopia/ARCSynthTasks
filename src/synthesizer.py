@@ -1,3 +1,4 @@
+import logging
 from arckit import Task
 from .utils import compose_verifiers
 
@@ -24,7 +25,7 @@ class TaskSynthesizer:
                 assert transformed_input is not None, "Verifier returned None"
                 train_data.append({'input': original_input, 'output': transformed_input})
             except Exception as e:
-                # print(f"Error applying verifier on training data: {e}")
+                logging.warning(f"Error applying verifier on training data: {e}")
                 return None  # Return None to indicate failure
 
         test_data = []
@@ -34,7 +35,7 @@ class TaskSynthesizer:
                 assert transformed_input is not None, "Verifier returned None"
                 test_data.append({'input': original_input, 'output': transformed_input})
             except Exception as e:
-                # print(f"Error applying verifier on test data: {e}")
+                logging.warning(f"Error applying verifier on test data: {e}")
                 return None  # Return None to indicate failure
        
         return Task(id=task_id, train=train_data, test=test_data)

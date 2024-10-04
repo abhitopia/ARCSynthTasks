@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 import inspect
+import logging
 import json
 from pathlib import Path
 from typing import List, Union
@@ -96,7 +97,7 @@ def compose_verifiers(verifiers_list):
 def save_task(task: Task, path: Union[Path, str]):
     path = Path(path)
     if path.exists():
-        print(f"Task {task.id} already exists at {path}")
+        logging.info(f"Task {task.id} already exists at {path}")
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     json.dump(task.to_dict(), path.open('w'), indent=2)
