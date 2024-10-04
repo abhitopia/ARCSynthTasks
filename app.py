@@ -21,7 +21,7 @@ logging.basicConfig(
 
 
 # CONFIG
-INCLUDE_OUTPUTS = False
+INCLUDE_OUTPUTS = True
 SCORE_FILE = 'scores.json'
 KEPT_TASK_DIR = Path('data/synthetic_tasks')
 NUM_VERIFIERS = 1
