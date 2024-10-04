@@ -142,9 +142,9 @@ class TaskSampler:
         # Normalize scores to sum to 1
         probabilities = scores / scores.sum()
         choice = np.random.choice(keys, p=probabilities)
-        return choice
+        return str(choice)
 
-    def update_scores(self, task_components, feedback):
+    def update_scores(self, task_components, feedback: str, save=True):
         """
         Updates the scores based on feedback.
 
@@ -182,6 +182,9 @@ class TaskSampler:
             )
         else:
             raise ValueError("Invalid number of task components")
+        
+        if save:
+            self.save_scores()
 
     def _update_score(self, scores_dict, key, feedback):
         """

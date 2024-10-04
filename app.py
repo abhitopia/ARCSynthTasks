@@ -1,12 +1,34 @@
 import streamlit as st
 import json
+from arckit.vis import draw_task
+from src.utils import get_verifiers, load_task_inputs
 from src.sampler import TaskSampler
+from src.synthesizer import TaskSynthesizer
+from src.validator import Validator
 
-# Initialize your TaskSampler
-input_tasks = ['Task1', 'Task2', 'Task3']  # Replace with your actual input tasks
-verifiers = ['VerifierA', 'VerifierB', 'VerifierC']  # Replace with your actual verifiers
 
-task_sampler = TaskSampler(input_tasks, verifiers)
+# CONFIG
+INCLUDE_OUTPUTS = False
+SCORE_FILE = 'scores.json'
+NUM_VERIFIERS = 1
+
+
+@st.cache_resource
+def initialize_resources():
+    VERIFIERS = get_verifiers()
+    TASK_INPUTS = load_task_inputs(include_outputs=INCLUDE_OUTPUTS)
+    sampler = TaskSampler(
+        input_tasks=list(TASK_INPUTS.keys()),
+        verifiers=list(VERIFIERS.keys()), 
+        save_path=SCORE_FILE
+    )
+    synthesizer = TaskSynthesizer(VERIFIERS, TASK_INPUTS)
+    validator = Validator()
+    return sampler, synthesizer, validator
+
+
+# Initialize SAMPLER, SYNTHESIZER, VALIDATOR
+SAMPLER, SYNTHESIZER, VALIDATOR = initialize_resources()
 
 # Initialize session state variables
 if 'task_history' not in st.session_state:
@@ -24,26 +46,49 @@ if 'selected_kept_task_index' not in st.session_state:
 if 'last_unactioned_task_index' not in st.session_state:
     st.session_state.last_unactioned_task_index = -1  # To track the last unactioned task
 
-# Define your functions (replace with your actual implementations)
-def generate_synthetic_task(sampled_task):
-    # Example implementation
-    synthetic_task = {
-        'input_task': sampled_task[0],
-        'verifiers': sampled_task[1:]
-    }
-    return synthetic_task
+
+def generate_synthetic_task_until_valid(synthesizer: TaskSynthesizer, sampler: TaskSampler, validator: Validator, num_verifiers: int, max_tries=20):
+    print("Generating synthetic task until valid")
+    for _ in range(max_tries):
+        invalid_task = False
+        task_components = sampler.sample_task(num_verifiers)
+        try:
+            task = synthesizer.generate_synthetic_task(*task_components)
+            if task is None or not validator(task):
+                invalid_task = True
+            draw_task(task, include_test='all')
+        except Exception as e:
+            # print(f"Error: {e}, skipping task")
+            invalid_task = True
+
+        if invalid_task:
+            sampler.update_scores(task_components, feedback='invalid')
+        else:
+            break
+        
+    return task, task_components
+
 
 def visualize_task(synthetic_task):
-    # Example implementation
     st.write("### Task Visualization")
-    st.json(synthetic_task)
+    svg = draw_task(synthetic_task, include_test='all')
+    
+    # Assuming svg.as_svg() returns the SVG string
+    svg_content = svg.as_svg()
+    
+    # Optionally, remove the XML declaration if present
+    if svg_content.strip().startswith('<?xml'):
+        svg_content = '\n'.join(svg_content.strip().split('\n')[1:])
+    
+    # Embed the SVG using st.markdown
+    st.markdown(f'<div>{svg_content}</div>', unsafe_allow_html=True)
 
 def save_tasks_and_scores():
     # Save kept tasks
     with open('kept_tasks.json', 'w') as f:
         json.dump([task['synthetic_task'] for task in st.session_state.kept_tasks], f, indent=4)
     # Save scores
-    task_sampler.save_scores()
+    # SAMPLER.save_scores()
     st.sidebar.success('Tasks and scores saved.')
 
 def clear_kept_tasks():
@@ -58,7 +103,7 @@ def on_keep_clicked():
     task = st.session_state.current_task
     if task['status'] != 'kept':
         # Update scores
-        task_sampler.update_scores(task['sampled_task'], feedback='keep')
+        SAMPLER.update_scores(task['sampled_task'], feedback='keep')
         # Save the kept task
         st.session_state.kept_tasks.append(task)
         # Update task status
@@ -76,7 +121,7 @@ def on_discard_clicked():
         st.session_state.kept_tasks.remove(task)
     if task['status'] != 'discarded':
         # Update scores
-        task_sampler.update_scores(task['sampled_task'], feedback='discard')
+        SAMPLER.update_scores(task['sampled_task'], feedback='discard')
         # Update task status
         task['status'] = 'discarded'
     # Update last unactioned task index
@@ -97,7 +142,7 @@ def on_return_to_current_task_clicked():
     st.rerun()  # Updated function call
 
 def main():
-    st.title('Task Sampler App')
+    st.title('ARC Task Synthesizer')
 
     # Handle actions based on button clicks BEFORE rendering the sidebar
     if st.session_state.action == 'next_task' or st.session_state.current_index == -1 or st.session_state.current_task is None:
@@ -135,8 +180,11 @@ def main():
 
 def sample_next_task():
     # Sample a new task
-    sampled_task = task_sampler.sample_task(num_verifiers=2)
-    synthetic_task = generate_synthetic_task(sampled_task)
+    synthetic_task, sampled_task = generate_synthetic_task_until_valid(
+                                        synthesizer=SYNTHESIZER,
+                                        sampler=SAMPLER,
+                                        validator=VALIDATOR,
+                                        num_verifiers= NUM_VERIFIERS)
     # Create task dictionary
     task = {
         'sampled_task': sampled_task,
