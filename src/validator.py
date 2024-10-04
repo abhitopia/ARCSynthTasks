@@ -4,7 +4,9 @@ class Validator:
     def __init__(self):
         self.validation_funcs = [
             self.inputs_changed,
-            self.output_size_within_limits]
+            self.output_size_within_limits,
+            self.not_original_task
+            ]
 
     def __call__(self, task: Task) -> bool:
         # Apply all validation functions
@@ -41,3 +43,18 @@ class Validator:
             if num_rows > max_rows or num_cols > max_cols:
                 return False  # Output size exceeds limits
         return True  # All outputs are within limits`
+    
+
+    def not_original_task(self, task: Task) -> bool:
+        """
+        Prevents the original task from being submitted.
+        """
+        splited = task.id.split('_')
+        input_id = splited[0][1:] if splited[0][0] == 'I' or splited[0][0] == 'O' else splited[0]
+        verifiers = splited[1:]
+        print(input_id, verifiers)
+        return input_id not in verifiers
+
+
+
+# ADD VALIDATOR ALL OUTPUT CELLS ARE BLACK all across
